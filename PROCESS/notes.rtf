@@ -1,0 +1,97 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf600
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 ===NOTES FOR eScience workshop PAPER===\
+\
+=Structure:\
+	- Intro\
+		* LOFAR and goals\
+		* LOFAR data processing\
+	- Background\
+		* LOFAR software stack\
+		* EOSCpilot for LOFAR\
+		* Xenon-flow and CWL\
+		* Containerisation and Data services in PROCESS\
+	- Implementation \
+	- Results\
+	- Conclusion and future work\
+\
+\
+=Introduction\
+\'85\
+	- LOFAR is a distributed software telescope, meaning it relies of software to reach its goals. This is visible in its operational design of the instrument as before even being stored as data the signals go through a computing system, the correlator, where they are processed (correlated) and then sent to the LTA as visibilities.\
+	- These pre-processed data are seldom used directly by the astronomers. Instead, these data usually go through further processing for radio frequency interference removal, calibration and finally imaging. The generated images are the inputs to most scientific enquiries\
+	- Each of above processing is complex and requires usually both domain and software knowledge in order to be used to generate useful output. This combined with the massive volume of the data makes the use of the LTA only possible to a select group of people\
+	- Furthermore, these challenges are exacerbated when one needs to process, not only one observation but as many as possible simultaneously as is the case for surveys\
+	- For this reason, researchers interested in surveys for instance, are building frameworks to make LOFAR observation processing easy, portable, scalable and generalisable\\cite\{mechev\}\
+	- One of the achievements of the above project is making the workflow processing possible on some clusters connected to the LTA with high-bandwidth network (SURFSara) and accelerating some of the processing steps by using parallel computing, which can be seen as vertical scalability\
+	- One of the aims the project didn\'92t reach yet is horizontal scalability\
+	- This is where the EU PROCESS project comes into play. Indeed, PROCESS is designed to tackle the extreme large data handling and processing challenges introduced by exascale applications such as surveys. The approach taken PROCESS is to build tools and services capable of supporting exascale use cases by federating computing infrastructures from both HPC and Cloud\
+	- It comes at no surprise, LOFAR surveys is one of five pilot applications in PROCESS which will bring horizontal scalability to above work by making it possible to run several processing workflows in parallel on several computing infrastructures\
+	- One of the goals of PROCESS is to facilitate the use of the resulting platform by providing a user-friendly frontend that lets the user select both her datasets and workflows, launch the processing to the computing infrastructures and, finally, either directly or indirectly retrieve the results from the frontend\
+\
+=BACKGROUND (from https://www.astron.nl/citt/genericpipeline/)\
+	- 
+\b pipeline framework
+\b0  (?) used to automate processing on CEP clusters\
+	- writing pipeline is complicated and requires knowledge of the framework and some programming skills\
+	- generic pipeline is pipeline based on the pipeline framework, helps users w/ the design and execution of their workflows w/o understanding the underlying system\
+	- advantage: input and output filenames of steps are mostly hidden and can be managed in a consistent way\
+	- ideally, there are enough predefined possible steps for the user to choose from -> defining a pipeline comes down to configuring a minimal set of program arguments \
+	- steps and arguments are defined in a parset (parameter set) file\
+	- the parset is the argument to the genericpipeline\
+	\
+	- PREFACTOR (from https://www.astron.nl/citt/prefactor/)\
+		* pipeline to correct for various instrumental and ionospheric effects in both HBA and LBA observations\
+		* prepares data to be used by any direction-dependent (DD) calibration sw such as FACTOR or killMS\
+\
+	- 
+\b PREFACTOR
+\b0  is organised in 3 major parts to process LOFAR data:\
+		* Pre-Facet-Calibrator: processes the calibrator to derive direction-independent (DI) corrections (runs Calibrator pipeline)\
+		* Pre-Facet-Target: transfers the DI corrections to the target and does DI calibration of the target (runs Target pipeline)\
+		* Initial-Substract: images the field of view (FoV), generating a sky-model and subtracting it from the visibilities; before this, the Concatenate pipeline would concatenated the single-subband target data retrieved from the LTA into bands suitable for Initial-Substract\
+	- PREFACTOR consists of parsecs for the genericpipeline that do the first calibration of LOFAR data (originally to prepare said data for FACTOR, thus the name; but can be used also for other DD calibration sw s.a. killMS)\
+\
+\
+	- EOSCPilot: uses an evidence-based approach using science demonstrators which investigate what is preventing the common use of e-infrastructures and determine the showstoppers and solutions found by some communities and infrastructure providers. LOFAR being one of the demonstrators, a web frontend allowing the user to search for observation data on the LTA, select a pipeline and launch processing from there [\'85].\
+	- EOSC pilot = European Open Science Cloud for Research Pilot Project\
+	- Goal: making existing radio astronomy research software available to a broader audience (build a pipeline on your laptop and run it anywhere like cloud or supercomputer)\
+\
+	- CWL (common workflow language)\
+		* a way to describe command line tools and connect them together to create a workflow\
+		* CWL is a standard, so tools and workflows described in CWL are portable across platforms supporting it\
+		\
+\
+	- CONTAINERISATION:\
+	- Difficulties of installing software on arbitrary system\
+	- containerisation is the practice of delivering sw preinstalled in an isolated environment, bundled with all dependencies and often a complete operating system \
+	- Makes installation of sw trivial as one only needs to obtain the container and have the corresponding container sw installed.\
+\
+=RESULTS\
+	- Web application (LTACAT) is an Angular application inherited from FRBCAT project funded by NLeSC under grant AA-ALERT and ERC (European Research Council) under 7thFP\
+	- Web application customised to fit LOFAR LTA needs: frontend almost identical, but showing information about observation, instead of fast radio bursts (FRBs); the backend is rewritten to access the LTA database view, which lets the application seamlessly access the observational archived data\
+	- A Django REST API project is then added to the framework allowing users to develop pipeline and run them from the Web application (as Session objects)\
+	- The application comes bundled with a pre-defined pipeline\
+	- A pipeline template and a procedure are provided for the definition of new pipelines as a Django application within the project\
+	- The procedure consists roughly in implementing a \\tit\{run\} function, modifying and renaming a few files in the template\
+	- Getting a new pipeline added to the frontend is thus straightforward. After successful installation of the underlying Django application, we could see a new pipeline appear in the list of available pipelines next to the default one as illustrated in the image\
+	- We add the \\thi\{prefactor\} pipeline\
+	- It\'92s quite another matter to actually be able to run something\
+	- We use xenon-flow for this. Xenon-flow runs as a server in the background and waiting for job requests from clients\
+	- So, the connection information (URL and credentials) need to be provided when the \\thi\{prefactor\} pipeline is selected\
+	- As xenon-flow runs CWL workflows, a CWL file describing the workflow to run also needs to be specified\
+	- The implemented pipeline currently consists of three main components for the calibrator and the target calibration and the imaging of the DI-calibrated data. Each component is described in its own CWL file as a workflow step. \
+	- As these steps are dependent on one another and CWL does not allow for conditional execution of steps as of now, we parse the standard output of each of these steps for specific string values and have xenon-flow return the concatenation of these as final output status for the workflow\
+	- This leads to three more steps in the CWL workflow, each parsing the standard output of the previous main steps, making the DAG shown in figX\
+	- After hitting the ``Run Workflow\'92\'92 button, an HTTP POST request containing all required information the pipeline is sent to xenon-flow server\
+	- Upon reception of the request, xenon-flow will start running the workflow\
+	- The configuration of xenon-flow will determine where and how the processes corresponding to the steps will be running. In our case, xenon-flow is configured to run jobs on the Netherlands ASCI DAS5 cluster located at the VU university using the CWL reference implementation \\tit\{cwl-runner\}\
+	- cwl-runner will orderly run all the steps under the control of xenon-flow\
+	- Upon completion, the concatenated string output is available in xenon-flow and is parsed for successful completion or otherwise. Following successful completion, FITS images produced by the imaging step are available in a specific directory on DAS5, from where the cleaned image (different types are generated) retrieved using the Python \\thi\{Fabric\} module directly into the Django application directory structure\
+	- Once on the local machine, the FITS image is converted into an JPEG image for visualisation in the browser using the Python \\thi\{APLpy\} module\
+	- An example of images obtained through the developed pipeline is shown in figY }
